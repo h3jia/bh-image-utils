@@ -259,7 +259,7 @@ class RingAnalyst:
                                            w_theta, w_mean, w_std,
                                            eta_all, eta_mean, eta_std,
                                            A_all, A_mean, A_std, fc, beta_2)
-                
+
             else:
                 return RingReport(x_center, n_bad, r_theta, r_mean, r_std,
                                   r_in_theta, r_in_mean, r_in_std,
