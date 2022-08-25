@@ -10,57 +10,43 @@ import warnings
 __all__ = ['RingAnalyst']
 
 
-RingReport = namedtuple('RingReport', 'x_center, n_bad, '
-                        'r_theta, r_mean, r_std, '
-                        'r_in_theta, r_in_mean, r_in_std, '
-                        'r_out_theta, r_out_mean, r_out_std, '
-                        'd_theta, d_mean, d_std, '
-                        'w_theta, w_mean, w_std, '
-                        'eta_all, eta_mean, eta_std, '
+RingReport = namedtuple('RingReport', 'x_center, n_bad, r_theta, r_mean, r_std, '
+                        'r_in_theta, r_in_mean, r_in_std, r_out_theta, r_out_mean, '
+                        'r_out_std, d_theta, d_mean, d_std, w_theta, '
+                        'w_mean, w_std, eta_all, eta_mean, eta_std, '
                         'A_all, A_mean, A_std, fc',
                         defaults=(None, np.nan, np.nan,
-                                  None, np.nan, np.nan,
-                                  None, np.nan, np.nan,
-                                  None, np.nan, np.nan,
-                                  None, np.nan, np.nan,
+                                  None, np.nan, np.nan, None, np.nan,
+                                  np.nan, None, np.nan, np.nan, None,
+                                  np.nan, np.nan, None, np.nan, np.nan,
                                   None, np.nan, np.nan, np.nan))
 
 
-PolarRingReport = namedtuple('PolarRingReport', 'x_center, n_bad, '
-                             'r_theta, r_mean, r_std, '
-                             'r_in_theta, r_in_mean, r_in_std, '
-                             'r_out_theta, r_out_mean, r_out_std, '
-                             'd_theta, d_mean, d_std, '
-                             'w_theta, w_mean, w_std, '
-                             'eta_all, eta_mean, eta_std, '
+PolarRingReport = namedtuple('PolarRingReport', 'x_center, n_bad, r_theta, r_mean, r_std, '
+                             'r_in_theta, r_in_mean, r_in_std, r_out_theta, r_out_mean, '
+                             'r_out_std, d_theta, d_mean, d_std, w_theta, '
+                             'w_mean, w_std, eta_all, eta_mean, eta_std, '
                              'A_all, A_mean, A_std, fc, beta_2',
                              defaults=(None, np.nan, np.nan,
-                                       None, np.nan, np.nan,
-                                       None, np.nan, np.nan,
-                                       None, np.nan, np.nan,
-                                       None, np.nan, np.nan,
-                                       None, np.nan, np.nan,
-                                       np.nan, np.nan))
+                                       None, np.nan, np.nan, None, np.nan,
+                                       np.nan, None, np.nan, np.nan, None,
+                                       np.nan, np.nan, None, np.nan, np.nan,
+                                       None, np.nan, np.nan, np.nan, np.nan))
 
 
-PolarBinRingReport = namedtuple('PolarBinRingReport', 'x_center, n_bad, '
-                                'r_theta, r_mean, r_std, '
-                                'r_in_theta, r_in_mean, r_in_std, '
-                                'r_out_theta, r_out_mean, r_out_std, '
-                                'd_theta, d_mean, d_std, '
-                                'w_theta, w_mean, w_std, '
-                                'eta_all, eta_mean, eta_std, '
+PolarBinRingReport = namedtuple('PolarBinRingReport', 'x_center, n_bad, r_theta, r_mean, r_std, '
+                                'r_in_theta, r_in_mean, r_in_std, r_out_theta, r_out_mean, '
+                                'r_out_std, d_theta, d_mean, d_std, w_theta, '
+                                'w_mean, w_std, eta_all, eta_mean, eta_std, '
                                 'A_all, A_mean, A_std, fc, beta_2, beta_2_bin',
                                 defaults=(None, np.nan, np.nan,
-                                          None, np.nan, np.nan,
-                                          None, np.nan, np.nan,
-                                          None, np.nan, np.nan,
-                                          None, np.nan, np.nan,
-                                          None, np.nan, np.nan,
-                                          np.nan, np.nan, []))
+                                          None, np.nan, np.nan, None, np.nan,
+                                          np.nan, None, np.nan, np.nan, None,
+                                          np.nan, np.nan, None, np.nan, np.nan,
+                                          None, np.nan, np.nan, np.nan, np.nan, []))
 
 
-def circ_w(samples, weights=None, axis=None, high=2*np.pi, low=0):
+def circ_w(samples, weights=None, high=2*np.pi, low=0):
     samples = np.asarray(samples)
     diff = high - low
     if diff != 2 * np.pi:
@@ -87,9 +73,7 @@ class RingAnalyst:
                  center_out_loss=1e6, bad_dir_loss=5, alpha=0.5, beta=0.85, gamma=0.5,
                  optimize_options=None, fc_region=5, blur=True, eta_A_w=True):
         self.image_analyst = image_analyst
-        if not np.array_equal(image_analyst.x_muas, image_analyst.y_muas):
-            raise NotImplementedError
-        x_muas = image_analyst.x_muas_blur if blur else image_analyst.x_muas
+        x_muas = image_analyst.dict['x_muas_blur' if blur else 'x_muas']
         self.dx = x_muas[1] - x_muas[0]
         self.x_interp = x_muas[:-1] + self.dx / 2
         self.n_theta = n_theta
@@ -112,8 +96,9 @@ class RingAnalyst:
         if blur is not None:
             self.blur = blur
         if i is not None or blur is not None:
-            self.image = self.image_analyst.inus_blur[i] / 1e-4 if self.blur else self.image_analyst.inus[i] / 1e-4
-            self.f_interp = RectBivariateSpline(self.x_interp, self.x_interp, self.image, kx=1, ky=1)
+            self.image = self.image_analyst.dict['I_nu_blur' if self.blur else 'I_nu'][i].T
+            self.f_interp = RectBivariateSpline(self.x_interp, self.x_interp, self.image, kx=1,
+                                                ky=1)
 
     def disk_f(self, x):
         x = np.asarray(x)
@@ -142,7 +127,8 @@ class RingAnalyst:
         is_bad_bool = is_bad.astype(bool)
         r_theta_good = r_theta[~is_bad_bool]
         assert np.all(r_theta_good >= 0)
-        return np.mean(r_theta_good),  np.std(r_theta_good), np.sum(is_bad_bool) # r_mean, r_std, n_bad
+        # r_mean, r_std, n_bad
+        return np.mean(r_theta_good), np.std(r_theta_good), np.sum(is_bad_bool)
 
     def _loss(self, disk_f):
         n_theta, n_r = disk_f.shape
@@ -165,7 +151,8 @@ class RingAnalyst:
                             np.sin(np.linspace(0, 2 * np.pi, self.n_theta, False))))
         ring_xy = r * ring_cs
         ring_f = self.f_interp.ev(x_center[0] + ring_xy[0], x_center[1] + ring_xy[1])
-        itg = np.mean(ring_f * np.exp(1j * np.linspace(0, 2 * np.pi, self.n_theta, False))) * 2 * np.pi
+        itg = (np.mean(ring_f * np.exp(1j * np.linspace(0, 2 * np.pi, self.n_theta, False))) * 2 *
+               np.pi)
         return np.angle(itg), np.absolute(itg) / (np.mean(ring_f) * 2 * np.pi)
 
     def eta_A(self, x_center, r_in, r_out):
@@ -203,12 +190,12 @@ class RingAnalyst:
 
     def beta_m(self, i, x_center, m=2, bin_beta=False):
         y_grid, x_grid = np.meshgrid(self.x_interp, self.x_interp)
-        phi_grid = np.arctan2(y_grid - x_center[1], x_grid - x_center[0]) + np.pi
+        phi_grid = ((np.arctan2(y_grid - x_center[1], x_grid - x_center[0]) - np.pi / 2) %
+                    (2 * np.pi))
         eimp_grid = np.exp(-1j * m * phi_grid)
-        if self.blur:
-            inus, qnus, unus = self.image_analyst.inus_blur[i], self.image_analyst.qnus_blur[i], self.image_analyst.unus_blur[i]
-        else:
-            inus, qnus, unus = self.image_analyst.inus[i], self.image_analyst.qnus[i], self.image_analyst.unus[i]
+        inus = self.image_analyst.dict['I_nu_blur' if self.blur else 'I_nu'][i].T
+        qnus = self.image_analyst.dict['Q_nu_blur' if self.blur else 'Q_nu'][i].T
+        unus = self.image_analyst.dict['U_nu_blur' if self.blur else 'U_nu'][i].T
         beta_2 = np.sum((qnus + 1j * unus) * eimp_grid) / np.sum(inus)
         beta_2_bin = []
         if not bin_beta:
@@ -217,7 +204,8 @@ class RingAnalyst:
             r_grid = np.sqrt((x_grid - x_center[0])**2 + (y_grid - x_center[1])**2)
             for k in range(len(bin_beta) - 1):
                 mask = np.where((bin_beta[k] < r_grid) * (r_grid < bin_beta[k + 1]))
-                beta_2_bin.append(np.sum(((qnus + 1j * unus) * eimp_grid)[mask]) / np.sum(inus[mask]))
+                beta_2_bin.append(np.sum(((qnus + 1j * unus) * eimp_grid)[mask]) /
+                                  np.sum(inus[mask]))
             return beta_2, beta_2_bin
 
     def run_single(self, i, blur=True, polar=False, bin_beta=False):
@@ -237,7 +225,8 @@ class RingAnalyst:
             r_out_mean, r_out_std, n_bad = self._r_mean_std(r_out_theta, is_bad)
             w_theta = r_out_theta - r_in_theta
             w_mean, w_std, n_bad = self._r_mean_std(w_theta, is_bad)
-            eta_all, eta_mean, eta_std, A_all, A_mean, A_std = self.eta_A(x_center, r_in_mean, r_out_mean)
+            eta_all, eta_mean, eta_std, A_all, A_mean, A_std = self.eta_A(x_center, r_in_mean,
+                                                                          r_out_mean)
             fc = self.fc(x_center, r_mean)
 
             if polar:
@@ -276,7 +265,7 @@ class RingAnalyst:
 
     def run(self, i_min=0, i_max=None, blur=True, polar=False, bin_beta=False, n_worker=10):
         if i_max is None:
-            i_max = len(self.image_analyst.inus)
+            i_max = len(self.image_analyst.dict['I_nu'])
         with mp.Pool(n_worker) as pool:
             return pool.starmap(self.run_single, zip(range(i_min, i_max), [blur] * (i_max - i_min),
                                 [polar] * (i_max - i_min), [bin_beta] * (i_max - i_min)))
