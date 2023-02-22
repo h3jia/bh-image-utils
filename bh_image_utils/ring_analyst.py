@@ -198,7 +198,7 @@ class RingAnalyst:
         unus = self.image_analyst.dict['U_nu_blur' if self.blur else 'U_nu'][i].T
         beta_2 = np.sum((qnus + 1j * unus) * eimp_grid) / np.sum(inus)
         beta_2_bin = []
-        if not bin_beta:
+        if bin_beta is False:
             return beta_2
         else:
             r_grid = np.sqrt((x_grid - x_center[0])**2 + (y_grid - x_center[1])**2)
@@ -230,7 +230,7 @@ class RingAnalyst:
             fc = self.fc(x_center, r_mean)
 
             if polar:
-                if bin_beta:
+                if bin_beta is not False:
                     beta_2, beta_2_bin = self.beta_m(i, x_center, 2, bin_beta)
                     return PolarBinRingReport(x_center, n_bad, r_theta, r_mean, r_std,
                                               r_in_theta, r_in_mean, r_in_std,

@@ -73,9 +73,9 @@ class ImageAnalyst:
             raise ValueError
 
         if n is None:
-            self._npz = [np.load(dir_pattern)]
+            self._npz = [self.load_npz(dir_pattern, full_data)]
         else:
-            self._npz = [np.load(dir_pattern.format(i)) for i in n]
+            self._npz = [self.load_npz(dir_pattern.format(i), full_data) for i in n]
         self._dict = OrderedDict()
         keys_all = (keys_0 + keys_1 + keys_2) if full_data else (keys_0 + keys_1)
         for k in keys_all:
@@ -102,6 +102,16 @@ class ImageAnalyst:
             self.dict['correction'] = self._f_nu_target / self.dict['f_nu_jy_mean']
 
     @staticmethod
+    def load_npz(path, full_data):
+        f = np.load(path)
+        if full_data:
+            return f
+        else:
+            foo = {k: f[k] for k in (keys_0 + keys_1)}
+            del f
+            return foo
+
+    @staticmethod
     def blur_image(image, muas_per_pix, fwhm=20.):
         return gaussian_filter(
             np.nan_to_num(image), fwhm / 2 / np.sqrt(2 * np.log(2)) / muas_per_pix, mode='constant')
@@ -109,26 +119,33 @@ class ImageAnalyst:
     @staticmethod
     def pad_image(image, n_pad):
         image = np.asarray(image)
-        if not image.ndim >= 2:
-            raise ValueError
-        i_shape = np.array(image.shape)
-        i_shape[-1] += 2 * n_pad
-        i_shape[-2] += 2 * n_pad
-        foo = np.zeros(i_shape)
-        foo[..., n_pad:-n_pad, n_pad:-n_pad] = image
-        return foo
+        assert n_pad >= 0
+        if n_pad > 0:
+            if not image.ndim >= 2:
+                raise ValueError
+            i_shape = np.array(image.shape)
+            i_shape[-1] += 2 * n_pad
+            i_shape[-2] += 2 * n_pad
+            foo = np.zeros(i_shape)
+            foo[..., n_pad:-n_pad, n_pad:-n_pad] = image
+            return foo
+        else:
+            return image
 
     @staticmethod
     def pad_muas(muas, n_pad):
         muas = np.asarray(muas)
-        assert muas.ndim == 1 and muas.size >= 2 and n_pad > 0
-        foo = np.empty(muas.size + n_pad * 2)
-        foo[:n_pad] = np.linspace(muas[0] - n_pad * (muas[1] - muas[0]), muas[0], n_pad,
-                                  endpoint=False)
-        foo[n_pad:-n_pad] = muas
-        foo[-n_pad:] = np.linspace(muas[-1] + muas[-1] - muas[-2], muas[-1] + (n_pad + 1) *
-                                   (muas[-1] - muas[-2]), n_pad, endpoint=False)
-        return foo
+        assert muas.ndim == 1 and muas.size >= 2 and n_pad >= 0
+        if n_pad > 0:
+            foo = np.empty(muas.size + n_pad * 2)
+            foo[:n_pad] = np.linspace(muas[0] - n_pad * (muas[1] - muas[0]), muas[0], n_pad,
+                                      endpoint=False)
+            foo[n_pad:-n_pad] = muas
+            foo[-n_pad:] = np.linspace(muas[-1] + muas[-1] - muas[-2], muas[-1] + (n_pad + 1) *
+                                       (muas[-1] - muas[-2]), n_pad, endpoint=False)
+            return foo
+        else:
+            return muas
 
     def blur_images(self, fwhm=20., n_worker=10, polar=True, f_pad=1):
         muas_per_pix = float(self.dict['dx_muas'])
@@ -148,7 +165,8 @@ class ImageAnalyst:
 
     def plot_image(self, i, target='I_nu', correction=False, save=False, save_name='0.png',
                    subplot=False, dpi=100, vmin=None, vmax=None, scale=None, cblabel=None,
-                   cmap=None, fontsize_label=15, fontsize_cblabel=15, fontsize_ticks=13):
+                   cmap=None, fontsize_label=15, fontsize_cblabel=15, fontsize_ticks=13,
+                   half_fov=None):
         if not subplot:
             plt.figure(figsize=(6, 4), dpi=dpi)
         if cblabel is None and scale is None and target in keys_iquv:
@@ -181,9 +199,15 @@ class ImageAnalyst:
         cbar.ax.tick_params(labelsize=fontsize_ticks)
 
         # Adjust axes
-        plt.xlim((x_muas[0], x_muas[-1]))
+        if half_fov is None:
+            x_0 = x_muas[0]
+            x_1 = x_muas[-1]
+        else:
+            x_0 = -half_fov
+            x_1 = half_fov
+        plt.xlim((x_0, x_1))
         plt.xlabel(x_label, fontsize=fontsize_label)
-        plt.ylim((x_muas[0], x_muas[-1]))
+        plt.ylim((x_0, x_1))
         plt.ylabel(y_label, fontsize=fontsize_label)
         plt.xticks(fontsize=fontsize_ticks)
         plt.yticks(fontsize=fontsize_ticks)

@@ -24,8 +24,8 @@ num_indices_per_rank = num_indices // size
 num_indices_extra = num_indices % size
 indices_local = list(
     indices[np.arange(rank * num_indices_per_rank, (rank + 1) * num_indices_per_rank)])
-if rank <= num_indices_extra:
-    indices_local = indices_local + [indices[-rank]]
+if rank < num_indices_extra:
+    indices_local = indices_local + [indices[-(rank + 1)]]
 
 assert args.output_dir
 try:
